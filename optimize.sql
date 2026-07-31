@@ -11,19 +11,42 @@
 -- ============================================================
 
 -- 工單 1：客服查會員
-
+EXPLAIN ANALYZE
+SELECT * FROM users WHERE email = 'user250000@livefit.tw';
+CREATE INDEX idx_users_email ON users (email);
 
 -- 工單 2：企業會員的課表
+EXPLAIN ANALYZE
+SELECT * FROM course_bookings WHERE user_id = 1003 AND cancelled_at IS NULL;
+CREATE INDEX idx_bookings_user_cancelled ON course_bookings (user_id, cancelled_at);
 
 
 -- 工單 3：最新購買紀錄牆
-
+EXPLAIN ANALYZE
+SELECT * FROM credit_purchases ORDER BY purchase_at DESC LIMIT 100;
+CREATE INDEX idx_purchases_at_desc ON credit_purchases (purchase_at DESC);
 
 -- 工單 4：首頁「進行中課程」
-
+EXPLAIN ANALYZE
+SELECT * FROM courses
+WHERE start_at <= TIMESTAMPTZ '2026-07-24 18:00:00+08'
+  AND end_at > TIMESTAMPTZ '2026-07-24 18:00:00+08';
+CREATE INDEX idx_courses_end_at ON courses (end_at);
 
 -- 工單 5：上週開課課程的教練報名統計（思考方向：需新增兩個索引）
+EXPLAIN ANALYZE
+SELECT u.name, COUNT(*) AS bookings
+FROM courses c
+JOIN course_bookings b ON b.course_id = c.id
+JOIN users u ON u.id = c.user_id
+WHERE c.start_at >= TIMESTAMPTZ '2026-07-24 18:00:00+08' - interval '7 days'
+  AND c.start_at <  TIMESTAMPTZ '2026-07-24 18:00:00+08'
+  AND b.cancelled_at IS NULL
+GROUP BY u.name;
+-- 病灶 1：加速 courses 的 WHERE 範圍條件
+CREATE INDEX idx_courses_start_at ON courses (start_at);
 
+-- 病灶 2：加速 course_bookings 的 JOIN 條件
+CREATE INDEX idx_bookings_course_id ON course_bookings (course_id);
 
 -- 加分題（選做）：使用部分索引（partial index）讓工單 2 的索引更小、更有效率
-
